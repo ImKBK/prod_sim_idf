@@ -1,0 +1,8 @@
+streamlit
+pandas
+numpy
+openpyxl
+rapidfuzz
+nltk
+altair
+nest_asyncio
