@@ -159,7 +159,7 @@ if uploaded_file:
             filtered_bigrams = [(pair, count) for pair, count in bigram_counts.items() if pair not in excluded_bigrams]
             all_bigrams_with_counts = sorted(filtered_bigrams, key=lambda x: x[1], reverse=True)
 
-            # 1️⃣ Top 10 Bigrams First
+            # Top 10 Bigrams First
             if all_bigrams_with_counts:
                 st.subheader("Top 10 Frequent Word Pairs in Unique Sheet")
                 top10_bigram_df = pd.DataFrame(
@@ -191,7 +191,7 @@ if uploaded_file:
             else:
                 st.info("No frequent bigrams found in Unique Items.")
 
-            # 2️⃣ Pie Chart Second
+            # Pie Chart Second
             unique_count = len(unique_items)
             bulk_count = sum(len(group) for group in bulk_groups)
             data = pd.DataFrame({
@@ -207,7 +207,7 @@ if uploaded_file:
             )
             st.altair_chart(pie_chart, use_container_width=True)
 
-            # 3️⃣ Bulk Groups Bar Chart Last
+            # Bulk Groups Bar Chart
             if not pivot_df.empty:
                 top_bulk = pivot_df.head(10)
                 chart = alt.Chart(top_bulk).mark_bar().encode(
@@ -223,4 +223,5 @@ if uploaded_file:
 
     except Exception as e:
         st.error(f"Error processing file: {e}")
+
 
