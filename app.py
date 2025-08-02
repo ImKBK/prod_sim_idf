@@ -20,7 +20,7 @@ st.set_page_config(page_title="Product Similarity Analysis", layout="centered")
 
 st.title("Product Similarity Analysis")
 
-st.info("Upload file with **2 COLUMNS ONLY**: one for Item Key (NANKEY) and one for Description (PROD_DESC).")
+st.info("Upload file with **2 COLUMNS ONLY**: NANKEY and Product Description.")
 
 uploaded_file = st.file_uploader("Upload Excel file (.xlsx only)", type=["xlsx"])
 
@@ -223,3 +223,4 @@ if uploaded_file:
 
     except Exception as e:
         st.error(f"Error processing file: {e}")
+
