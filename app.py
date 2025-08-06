@@ -21,7 +21,7 @@ st.set_page_config(page_title="Product Similarity & CSV Fixer", layout="centered
 
 tab1, tab2 = st.tabs(["Product Similarity Analysis", "Fix Misaligned CSV"])
 
-# -------------------- TAB 1: PRODUCT SIMILARITY -------------------- #
+
 with tab1:
     st.header("Product Similarity Analysis")
     st.info("Upload file with **2 COLUMNS ONLY**: NANKEY and Product Description.")
@@ -256,9 +256,9 @@ with tab2:
 
             output_cleaned = BytesIO()
             df_cleaned.to_excel(output_cleaned, index=False)
-            st.success("✅ File cleaned successfully.")
+            st.success("File cleaned successfully.")
             st.download_button(
-                label="📥 Download Cleaned Excel",
+                label="Download Cleaned Excel",
                 data=output_cleaned.getvalue(),
                 file_name="cleaned_file.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -266,3 +266,4 @@ with tab2:
 
         except Exception as e:
             st.error(f"Error fixing CSV: {e}")
+
