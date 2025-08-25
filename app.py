@@ -21,6 +21,7 @@ st.set_page_config(page_title="Product Similarity & CSV Fixer", layout="centered
 
 tab1, tab2 = st.tabs(["Product Similarity Analysis", "Fix Misaligned CSV"])
 
+# -------------------- TAB 1: PRODUCT SIMILARITY -------------------- #
 with tab1:
     st.header("Product Similarity Analysis")
     st.info("Upload file with **2 COLUMNS ONLY**: NANKEY and Product Description.")
@@ -67,13 +68,19 @@ with tab1:
                 df["PROD_DESC"] = df["PROD_DESC"].astype(str).str.lower().str.strip()
                 descriptions = df["PROD_DESC"].tolist()
                 n = len(descriptions)
+                similarity_matrix = np.zeros((n, n))
+                start_time = time.time()
+
+                progress = st.progress(0)
+                for i in range(n):
+                    similarities = [fuzz.token_sort_ratio(descriptions[i], descriptions[j]) for j in range(i + 1, n)]
+                    similarity_matrix[i, i + 1:] = similarities
+                    similarity_matrix[i + 1:, i] = similarities
+                    progress.progress((i + 1) / n)
 
                 used_indices = set()
                 bulk_groups = []
                 unique_items = []
-
-                start_time = time.time()
-                progress = st.progress(0)
 
                 for i in range(n):
                     if i in used_indices:
@@ -82,8 +89,7 @@ with tab1:
                     for j in range(i + 1, n):
                         if j in used_indices:
                             continue
-                        score = fuzz.token_sort_ratio(descriptions[i], descriptions[j])
-                        if score >= threshold:
+                        if similarity_matrix[i, j] >= threshold:
                             group.append(j)
                             used_indices.add(j)
                     if len(group) > 1:
@@ -91,7 +97,6 @@ with tab1:
                         used_indices.update(group)
                     else:
                         unique_items.append(i)
-                    progress.progress((i + 1) / n)
 
                 bulk_data = []
                 bulk_group_id = 1
@@ -137,6 +142,85 @@ with tab1:
                 col3.metric("Bulk Items", sum(len(group) for group in bulk_groups))
                 col4.metric("Execution Time (s)", f"{end_time - start_time:.2f}")
 
+                st.subheader("Charts")
+
+                output.seek(0)
+                unique_df_check = pd.read_excel(output, sheet_name='Unique Items')
+                unique_df_check.columns = unique_df_check.columns.str.strip().str.lower()
+                desc_col = 'prod_desc' if 'prod_desc' in unique_df_check.columns else 'product description'
+                descriptions = unique_df_check[desc_col].dropna().astype(str)
+
+                all_bigrams = []
+                for desc in descriptions:
+                    tokens = re.findall(r'\b[a-z]{2,}\b', desc.lower())
+                    filtered = [word for word in tokens if word not in stop_words]
+                    bigrams = list(ngrams(filtered, 2))
+                    all_bigrams.extend(bigrams)
+
+                bigram_counts = Counter(all_bigrams)
+                excluded_bigrams = {('fl', 'oz')}
+                filtered_bigrams = [(pair, count) for pair, count in bigram_counts.items() if pair not in excluded_bigrams]
+                all_bigrams_with_counts = sorted(filtered_bigrams, key=lambda x: x[1], reverse=True)
+
+                if all_bigrams_with_counts:
+                    st.subheader("Top 10 Frequent Word Pairs in Unique Sheet")
+                    top10_bigram_df = pd.DataFrame(
+                        [(f"{pair[0]} {pair[1]}", count) for pair, count in all_bigrams_with_counts[:10]],
+                        columns=["Bigram", "Count"]
+                    )
+                    chart = alt.Chart(top10_bigram_df).mark_bar().encode(
+                        x=alt.X('Count:Q'),
+                        y=alt.Y('Bigram:N', sort='-x'),
+                        tooltip=['Bigram', 'Count']
+                    ).properties(
+                        title='Top 10 Bigrams (Unique Items)',
+                        width=600,
+                        height=400
+                    )
+                    st.altair_chart(chart, use_container_width=True)
+
+                    all_bigrams_df = pd.DataFrame(
+                        [(f"{pair[0]} {pair[1]}", count) for pair, count in all_bigrams_with_counts],
+                        columns=["Bigram", "Count"]
+                    )
+                    csv_output = all_bigrams_df.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        " Download Word Pairs",
+                        data=csv_output,
+                        file_name=f"bigrams_unique_items_{today_str}.csv",
+                        mime='text/csv'
+                    )
+                else:
+                    st.info("No frequent bigrams found in Unique Items.")
+
+                unique_count = len(unique_items)
+                bulk_count = sum(len(group) for group in bulk_groups)
+                data = pd.DataFrame({
+                    'Type': ['Unique Items', 'Bulk Items'],
+                    'Count': [unique_count, bulk_count]
+                })
+                pie_chart = alt.Chart(data).mark_arc(innerRadius=50).encode(
+                    theta='Count:Q',
+                    color='Type:N',
+                    tooltip=['Type', 'Count']
+                ).properties(
+                    title='Unique vs Bulk Items Distribution'
+                )
+                st.altair_chart(pie_chart, use_container_width=True)
+
+                if not pivot_df.empty:
+                    top_bulk = pivot_df.head(10)
+                    chart = alt.Chart(top_bulk).mark_bar().encode(
+                        x=alt.X('Bulk Group ID:O', sort='-y', title='Bulk Group ID'),
+                        y=alt.Y('Count of Bulk Group ID:Q', title='Items in Group'),
+                        tooltip=['Bulk Group ID', 'Count of Bulk Group ID']
+                    ).properties(
+                        title='Top 10 Bulk Groups by Size',
+                        width=600,
+                        height=400
+                    )
+                    st.altair_chart(chart, use_container_width=True)
+
         except Exception as e:
             st.error(f"Error processing file: {e}")
 
@@ -172,9 +256,9 @@ with tab2:
 
             output_cleaned = BytesIO()
             df_cleaned.to_excel(output_cleaned, index=False)
-            st.success("File cleaned successfully.")
+            st.success(" File cleaned successfully.")
             st.download_button(
-                label="Download Cleaned Excel",
+                label="📥 Download Cleaned Excel",
                 data=output_cleaned.getvalue(),
                 file_name="cleaned_file.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
